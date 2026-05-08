@@ -1,0 +1,35 @@
+experiment:
+  name: mobilenet_kd
+  seed: 42
+  output_dir: experiments/mobilenet_kd
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: mobilenet_v3_small
+
+teacher:
+  name: resnet18
+  checkpoint: experiments/resnet18_teacher/best.pt
+
+training:
+  epochs: 60
+  batch_size: 128
+  optimizer: adam
+  lr: 1e-3
+  weight_decay: 1e-4
+  scheduler: cosine
+  early_stopping_patience: 10
+
+distillation:
+  enabled: true
+  temperature: 4.0
+  alpha: 0.7          # weight for KD loss vs. cross-entropy

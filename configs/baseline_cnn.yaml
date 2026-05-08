@@ -1,0 +1,26 @@
+experiment:
+  name: baseline_cnn
+  seed: 42
+  output_dir: results/baseline_cnn
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+training:
+  epochs: 50
+  batch_size: 128
+  optimizer: adam
+  lr: 0.001
+  weight_decay: 0.0001
+  scheduler: cosine
+  early_stopping_patience: 10

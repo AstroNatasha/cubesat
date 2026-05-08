@@ -1,0 +1,28 @@
+experiment:
+  name: resnet18_teacher
+  seed: 42
+  output_dir: results/resnet18_teacher
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  # 224 matches ImageNet pretraining resolution; use 64 if training from scratch
+  image_size: 224
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: resnet18_teacher
+  pretrained: true   # fine-tune from ImageNet weights
+
+training:
+  epochs: 30
+  batch_size: 64
+  optimizer: sgd
+  lr: 0.01
+  weight_decay: 1e-4
+  scheduler: cosine
+  early_stopping_patience: 8

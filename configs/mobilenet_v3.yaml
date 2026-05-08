@@ -1,0 +1,27 @@
+experiment:
+  name: mobilenet_v3
+  seed: 42
+  output_dir: results/mobilenet_v3
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: mobilenet_v3_small
+  pretrained: false   # train from scratch; pretrained weights come in Phase 3 KD
+
+training:
+  epochs: 60
+  batch_size: 128
+  optimizer: adam
+  lr: 1e-3
+  weight_decay: 1e-4
+  scheduler: cosine
+  early_stopping_patience: 10
