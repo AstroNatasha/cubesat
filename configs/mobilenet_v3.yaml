@@ -15,13 +15,13 @@ dataset:
 
 model:
   name: mobilenet_v3_small
-  pretrained: false   # train from scratch; pretrained weights come in Phase 3 KD
+  pretrained: true   # train from scratch; pretrained weights come in Phase 3 KD
 
 training:
-  epochs: 60
+  epochs: 30 #60
   batch_size: 128
   optimizer: adam
-  lr: 1e-3
-  weight_decay: 1e-4
+  lr: 0.001
+  weight_decay: 0.0001
   scheduler: cosine
   early_stopping_patience: 10

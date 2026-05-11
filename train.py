@@ -123,8 +123,7 @@ def main():
     output_dir = Path(cfg["experiment"]["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    from src.training.trainer import Trainer
-    trainer = Trainer(
+    trainer_kwargs = dict(
         model        = model,
         train_loader = train_loader,
         val_loader   = val_loader,
@@ -135,6 +134,28 @@ def main():
         epochs       = cfg["training"]["epochs"],
         early_stopping_patience = cfg["training"].get("early_stopping_patience", 10),
     )
+
+    if cfg["training"].get("use_kd", False):
+        from src.training.kd_trainer import KDTrainer, load_teacher
+        t_cfg    = cfg["teacher"]
+        kd_cfg   = cfg["distillation"]
+        teacher  = load_teacher(
+            checkpoint_path = t_cfg["checkpoint"],
+            model_name      = t_cfg["name"],
+            num_classes     = cfg["dataset"]["num_classes"],
+            device          = device,
+        )
+        print(f"Teacher loaded from {t_cfg['checkpoint']}")
+        trainer = KDTrainer(
+            teacher     = teacher,
+            temperature = kd_cfg["temperature"],
+            alpha       = kd_cfg["alpha"],
+            **trainer_kwargs,
+        )
+    else:
+        from src.training.trainer import Trainer
+        trainer = Trainer(**trainer_kwargs)
+
     trainer.fit()
 
     # --- test-set evaluation ---
