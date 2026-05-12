@@ -33,5 +33,10 @@ training:
 
 distillation:
   enabled: true
-  temperature: 4.0
-  alpha: 0.7          # weight for KD loss vs. cross-entropy
+  # Lower T sharpens the soft label distribution; T=4 was washing out class
+  # boundaries on this 10-class problem, especially at 64×64 resolution.
+  temperature: 2.0
+  # alpha weights the KD loss; 0.3 means CE(ground truth) drives 70% of learning.
+  # The previous alpha=0.7 over-relied on teacher soft labels, which were noisy
+  # due to the resolution mismatch — reducing alpha recovers the CE signal.
+  alpha: 0.3

@@ -1,0 +1,34 @@
+experiment:
+  name: federated_baseline
+  seed: 42
+  output_dir: results/federated_baseline
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn   # swap to mobilenet_v3_small for the student experiment
+
+federated:
+  num_clients: 10
+  num_rounds: 20
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 10        # how many clients participate per round (set < num_clients for partial participation)
+  partitioning: iid            # iid | noniid
+  dominant_classes_per_client: 2  # only used when partitioning: noniid
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+# Set to false to suppress per-client and per-epoch progress bars.
+# Round separators and per-round summaries are always shown.
+verbose: true

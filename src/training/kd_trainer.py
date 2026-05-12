@@ -39,6 +39,15 @@ class KDTrainer(Trainer):
         for p in self.teacher.parameters():
             p.requires_grad_(False)
 
+        print(
+            f"[KDTrainer] "
+            f"student={type(self.model).__name__}  "
+            f"teacher={type(self.teacher).__name__}  "
+            f"alpha={self.alpha}  T={self.temperature}  "
+            f"teacher_frozen={not any(p.requires_grad for p in self.teacher.parameters())}  "
+            f"teacher_eval={not self.teacher.training}"
+        )
+
         # side-channel filled by _train_epoch before compute_loss is called
         self._images: torch.Tensor | None = None
 

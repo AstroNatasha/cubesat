@@ -6,8 +6,10 @@ experiment:
 dataset:
   name: eurosat
   root: data/eurosat
-  # 224 matches ImageNet pretraining resolution; use 64 if training from scratch
-  image_size: 128 #224
+  # 64×64 matches the student and KD data pipeline — teacher soft labels must come
+  # from the same resolution the student sees, otherwise the teacher is evaluating
+  # a distribution it was never trained on and produces unreliable guidance.
+  image_size: 64
   num_classes: 10
   train_split: 0.7
   val_split: 0.15
