@@ -1,0 +1,41 @@
+experiment:
+  name: federated_topk
+  seed: 42
+  output_dir: results/federated_topk
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+federated:
+  num_clients: 10
+  num_rounds: 20
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 10
+  partitioning: iid
+  dominant_classes_per_client: 2
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+compression:
+  # Sparse top-k update: transmit only the 10% largest-magnitude parameters.
+  # Non-transmitted entries are zeroed in the reconstructed update fed to FedAvg,
+  # simulating the gradient-sparsification approach used in bandwidth-constrained FL.
+  # Byte cost: each kept entry = 4 bytes (FP32 value) + 4 bytes (INT32 index).
+  # At fraction=0.1: cost = 0.1 × 8 bytes vs 1 × 4 bytes → ratio ≈ 5x.
+  mode: topk_sparse
+  topk_fraction: 0.1
+
+verbose: true

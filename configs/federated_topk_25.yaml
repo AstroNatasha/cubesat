@@ -1,0 +1,39 @@
+experiment:
+  name: federated_topk_25
+  seed: 42
+  output_dir: results/federated_topk_25
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+federated:
+  num_clients: 10
+  num_rounds: 20
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 10
+  partitioning: iid
+  dominant_classes_per_client: 2
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+compression:
+  # Top-25%: transmit the 25% largest-magnitude update values per tensor.
+  # Upload cost: 0.25 × P × 8 bytes. Download: full FP32.
+  # Net ratio ~1.33x over FP32 baseline (upload savings partially offset by index overhead).
+  mode: topk_sparse
+  topk_fraction: 0.25
+
+verbose: true

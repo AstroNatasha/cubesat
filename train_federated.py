@@ -138,6 +138,16 @@ def main():
         output_dir   = str(output_dir),
     )
 
+    from src.federated.compression import Compressor
+    comp_cfg    = cfg.get("compression", {})
+    comp_mode   = comp_cfg.get("mode", "none")
+    compressor  = Compressor(
+        mode          = comp_mode,
+        topk_fraction = comp_cfg.get("topk_fraction", 0.1),
+    )
+    print(f"Compression:  {comp_mode}"
+          + (f"  topk_fraction={comp_cfg['topk_fraction']}" if comp_mode == "topk_sparse" else ""))
+
     records = server.run(
         num_rounds         = fl["num_rounds"],
         local_epochs       = fl["local_epochs"],
@@ -147,6 +157,7 @@ def main():
         clients_per_round  = fl.get("clients_per_round", fl["num_clients"]),
         seed               = seed,
         verbose            = cfg.get("verbose", True),
+        compressor         = compressor,
     )
 
     # --- final test evaluation ---
@@ -168,9 +179,10 @@ def main():
 
     (output_dir / "final_test_metrics.json").write_text(json.dumps(
         {
-            "experiment":   cfg["experiment"]["name"],
-            "model":        model_name,
-            "partitioning": partitioning,
+            "experiment":        cfg["experiment"]["name"],
+            "model":             model_name,
+            "partitioning":      partitioning,
+            "compression_mode":  comp_mode,
             **final_metrics,
         },
         indent=2,

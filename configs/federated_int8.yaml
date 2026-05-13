@@ -1,0 +1,39 @@
+experiment:
+  name: federated_int8
+  seed: 42
+  output_dir: results/federated_int8
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+federated:
+  num_clients: 10
+  num_rounds: 20
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 10
+  partitioning: iid
+  dominant_classes_per_client: 2
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+compression:
+  # Simulate INT8 transmission: each parameter costs 1 byte instead of 4 (FP32).
+  # Per-tensor min-max quantisation introduces rounding error into FedAvg,
+  # simulating the accuracy impact of INT8 communication on a CubeSat link.
+  # Expected compression ratio: ~4x  (P bytes vs 4P bytes, plus tiny overhead).
+  mode: int8_quantization
+
+verbose: true

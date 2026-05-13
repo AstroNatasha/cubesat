@@ -29,6 +29,9 @@ training:
   lr: 0.001
   weight_decay: 0.0001
 
+compression:
+  mode: none   # none | int8_quantization | topk_sparse
+
 # Set to false to suppress per-client and per-epoch progress bars.
 # Round separators and per-round summaries are always shown.
 verbose: true
