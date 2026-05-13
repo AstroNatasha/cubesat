@@ -1,0 +1,36 @@
+experiment:
+  name: federated_non_iid
+  seed: 42
+  output_dir: results/federated_non_iid
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+federated:
+  num_clients: 10
+  num_rounds: 20
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 10
+  # "noniid" activates noniid_partition(); each client receives 80% of its data
+  # from its dominant classes and 20% shared from the remaining classes.
+  partitioning: noniid
+  # With 10 clients and 10 classes, each client dominates exactly 2 classes
+  # (assigned cyclically: client 0 → classes 0,1; client 1 → classes 2,3; …).
+  dominant_classes_per_client: 2
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+verbose: true
