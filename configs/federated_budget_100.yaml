@@ -1,0 +1,43 @@
+experiment:
+  name: federated_budget_100
+  seed: 42
+  output_dir: results/federated_budget_100
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+federated:
+  num_clients: 10
+  num_rounds: 50         # budget caps this to ~26 rounds at 3.73 MB/round
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 3
+  partitioning: noniid
+  dominant_classes_per_client: 2
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+compression:
+  mode: int8_quantization
+
+mission_constraints:
+  max_total_communication_MB: 100
+  model_size_limit_MB: 4.2
+  daily_downlink_budget_MB: 2.16
+  link_rate_kbps: 9.6
+  contact_window_minutes: 10
+  contacts_per_day: 3
+
+verbose: true
