@@ -54,6 +54,7 @@ class FederatedServer:
         seed: int = 42,
         verbose: bool = True,
         compressor: Compressor | None = None,
+        comm_budget_mb: float | None = None,
     ) -> list[dict]:
         rng = random.Random(seed)
         n_active     = clients_per_round or len(self.clients)
@@ -66,15 +67,34 @@ class FederatedServer:
         for r in range(1, num_rounds + 1):
             round_start = time.perf_counter()
 
+            # ── global state dict (needed for budget check + download estimate) ──
+            global_sd = self.global_model.state_dict()
+
+            # ── communication budget guard — check before any client training ──
+            if comm_budget_mb is not None:
+                est_upload   = comp.compressed_bytes(global_sd) * n_active
+                est_download = comp.download_bytes(global_sd)   * n_active
+                est_round_mb = (est_upload + est_download) / 1e6
+                if cumulative_mb + est_round_mb > comm_budget_mb:
+                    print(
+                        f"\n{_SEP}\n"
+                        f"  Budget exhausted: {cumulative_mb:.2f} MB used, "
+                        f"round {r} costs ~{est_round_mb:.2f} MB "
+                        f"(budget: {comm_budget_mb:.1f} MB). Stopping.\n"
+                        f"{_SEP}"
+                    )
+                    break
+
             # Round header — always visible so the terminal never looks frozen
             print(f"\n{_SEP}")
-            print(f"  Round {r}/{num_rounds}  [{comp.mode}]")
+            print(f"  Round {r}/{num_rounds}  [{comp.mode}]"
+                  + (f"  budget={comm_budget_mb - cumulative_mb:.1f} MB remaining"
+                     if comm_budget_mb is not None else ""))
             print(_SEP)
 
             selected = rng.sample(self.clients, n_active)
 
             # ── download byte estimate (server → clients, pre-aggregation) ──
-            global_sd           = self.global_model.state_dict()
             dl_bytes_each       = comp.download_bytes(global_sd)   # FP32 for topk (delta needs full model)
             dl_fp32_each        = comp.fp32_bytes(global_sd)
             download_comp_bytes = n_active * dl_bytes_each

@@ -1,0 +1,53 @@
+experiment:
+  name: federated_cubesat_constrained
+  seed: 42
+  output_dir: results/federated_cubesat_constrained
+
+dataset:
+  name: eurosat
+  root: data/eurosat
+  image_size: 64
+  num_classes: 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+
+model:
+  name: baseline_cnn
+
+federated:
+  num_clients: 10
+  num_rounds: 20        # maximum desired; actual rounds are capped by the budget
+  local_epochs: 5
+  batch_size: 32
+  clients_per_round: 10
+  partitioning: iid
+  dominant_classes_per_client: 2
+
+training:
+  lr: 0.001
+  weight_decay: 0.0001
+
+compression:
+  # INT8 is used to maximise the number of rounds achievable within the budget.
+  # Without compression (FP32), only 1 round fits in 50 MB; with INT8, 4 rounds fit.
+  mode: int8_quantization
+
+# ── CubeSat mission constraints ──────────────────────────────────────────────
+mission_constraints:
+  # Hard communication budget for the entire mission (upload + download combined).
+  # Derived from downlink capacity: 9.6 kbps × 600 s/contact × 3 contacts/day
+  # ≈ 2.16 MB/day. A 23-day mission window → ~50 MB total.
+  max_total_communication_MB: 50
+
+  # Model must fit in onboard flash with margin for OS + payload data.
+  model_size_limit_MB: 4.2
+
+  # Daily downlink window (UHF radio, typical 1U–3U CubeSat)
+  daily_downlink_budget_MB: 2.16
+  link_rate_kbps: 9.6           # UHF link; set to 256 for S-band scenario
+  contact_window_minutes: 10    # minutes per ground-station pass
+  contacts_per_day: 3           # passes per day (LEO at ~500 km)
+
+verbose: true

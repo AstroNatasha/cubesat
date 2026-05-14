@@ -79,11 +79,18 @@ def main():
     d = cfg["dataset"]
     t = cfg["training"]
 
+    mc = cfg.get("mission_constraints", {})
+
     print(f"Device:       {device}")
     print(f"Model:        {model_name}")
     print(f"Partitioning: {partitioning}")
     print(f"Clients:      {fl['num_clients']}  rounds={fl['num_rounds']}  local_epochs={fl['local_epochs']}")
     print(f"Output:       {output_dir}")
+    if mc:
+        print(f"Budget:       {mc.get('max_total_communication_MB','∞')} MB  "
+              f"link={mc.get('link_rate_kbps','?')} kbps  "
+              f"{mc.get('contacts_per_day','?')} contacts/day × "
+              f"{mc.get('contact_window_minutes','?')} min")
 
     # --- data ---
     from src.data.eurosat import build_dataloaders
@@ -148,8 +155,27 @@ def main():
     print(f"Compression:  {comp_mode}"
           + (f"  topk_fraction={comp_cfg['topk_fraction']}" if comp_mode == "topk_sparse" else ""))
 
+    # --- mission budget: cap rounds if a communication budget is set ---
+    comm_budget_mb = mc.get("max_total_communication_MB", None)
+    actual_rounds  = fl["num_rounds"]
+
+    if comm_budget_mb is not None:
+        from src.federated.mission import max_rounds_from_budget
+        n_active_est      = fl.get("clients_per_round", fl["num_clients"])
+        tmp_sd            = global_model.state_dict()
+        est_upload_mb     = compressor.compressed_bytes(tmp_sd) * n_active_est / 1e6
+        est_download_mb   = compressor.download_bytes(tmp_sd)   * n_active_est / 1e6
+        est_per_round_mb  = est_upload_mb + est_download_mb
+        max_rounds_budget = max_rounds_from_budget(comm_budget_mb, est_per_round_mb)
+        actual_rounds     = min(fl["num_rounds"], max_rounds_budget)
+        print(
+            f"  est {est_per_round_mb:.2f} MB/round → "
+            f"budget allows {max_rounds_budget} rounds "
+            f"(requested {fl['num_rounds']} → running {actual_rounds})"
+        )
+
     records = server.run(
-        num_rounds         = fl["num_rounds"],
+        num_rounds         = actual_rounds,
         local_epochs       = fl["local_epochs"],
         batch_size         = fl["batch_size"],
         lr                 = t["lr"],
@@ -158,6 +184,7 @@ def main():
         seed               = seed,
         verbose            = cfg.get("verbose", True),
         compressor         = compressor,
+        comm_budget_mb     = comm_budget_mb,
     )
 
     # --- final test evaluation ---
@@ -168,10 +195,29 @@ def main():
         input_shape = (1, 3, d["image_size"], d["image_size"]),
         device      = torch.device("cpu"),
     )
-    final_metrics["size_mb"]               = model_size_mb(output_dir / "final_model.pt")
-    final_metrics["total_communication_MB"] = records[-1]["cumulative_communication_MB"]
-    final_metrics["num_rounds"]             = fl["num_rounds"]
+    used_comm = records[-1]["cumulative_communication_MB"] if records else 0.0
+    final_metrics["size_mb"]                = model_size_mb(output_dir / "final_model.pt")
+    final_metrics["total_communication_MB"] = used_comm
+    final_metrics["rounds_completed"]       = len(records)
+    final_metrics["num_rounds_requested"]   = fl["num_rounds"]
     final_metrics["num_clients"]            = fl["num_clients"]
+
+    # --- mission constraint metrics (only when mc is configured) ---
+    if mc:
+        from src.federated.mission import compute_mission_metrics
+        mission_m = compute_mission_metrics(
+            used_comm_mb           = used_comm,
+            comm_budget_mb         = mc.get("max_total_communication_MB", float("inf")),
+            link_rate_kbps         = mc.get("link_rate_kbps", 9.6),
+            contact_window_minutes = mc.get("contact_window_minutes", 10),
+            contacts_per_day       = mc.get("contacts_per_day", 3),
+            rounds_completed       = len(records),
+            rounds_requested       = fl["num_rounds"],
+        )
+        final_metrics.update(mission_m)
+        print("\n=== Mission constraint report ===")
+        for k, v in mission_m.items():
+            print(f"  {k}: {v}")
 
     print("\n=== Final test metrics ===")
     for k, v in final_metrics.items():
@@ -183,6 +229,7 @@ def main():
             "model":             model_name,
             "partitioning":      partitioning,
             "compression_mode":  comp_mode,
+            "constrained":       bool(mc),
             **final_metrics,
         },
         indent=2,

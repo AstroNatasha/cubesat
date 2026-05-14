@@ -273,6 +273,82 @@ def build_summary(rows: list[dict]) -> str:
     return "\n".join(l for l in lines if l)
 
 
+# ── Table 3: constrained CubeSat comparison ───────────────────────────────
+
+def build_cubesat_comparison() -> str | None:
+    """3-row table: ideal FedAvg, ideal INT8, constrained INT8."""
+    paths = {
+        "federated_baseline":          ("FedAvg (IID, 20 rounds)",         "none"),
+        "federated_int8":              ("FedAvg + INT8 (20 rounds)",        "int8\\_quantization"),
+        "federated_cubesat_constrained":("FedAvg + INT8 (constrained, 50 MB)", "int8\\_quantization"),
+    }
+
+    rows = []
+    for key, (label, _) in paths.items():
+        f = load_final(key)
+        if f is None:
+            print(f"  [skip cubesat comparison] {key}")
+            continue
+        rows.append({
+            "label":         label,
+            "accuracy":      f["accuracy"],
+            "macro_f1":      f["macro_f1"],
+            "total_comm_mb": f["total_communication_MB"],
+            "rounds":        f.get("rounds_completed", f.get("num_rounds", "—")),
+            "latency_ms":    f.get("latency_ms", 0.0),
+            "dl_time_min":   f.get("estimated_downlink_time_minutes", None),
+            "days_tx":       f.get("estimated_days_to_transmit",     None),
+            "feasible":      f.get("feasible_under_budget",          None),
+        })
+
+    if len(rows) < 2:
+        return None
+
+    baseline_acc  = rows[0]["accuracy"]
+    baseline_comm = rows[0]["total_comm_mb"]
+    best_acc  = max(r["accuracy"]      for r in rows)
+    best_comm = min(r["total_comm_mb"] for r in rows)
+
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{Impact of CubeSat mission constraints (50 MB link budget, "
+        r"9.6 kbps UHF radio, 3 contacts/day $\times$ 10 min) on federated learning. "
+        r"The constrained scenario is limited to 4 rounds vs.\ 20 unconstrained. "
+        r"$\dagger$ Estimated at 9.6 kbps.}",
+        r"\label{tab:cubesat_constrained}",
+        r"\begin{tabular}{lccccc}",
+        r"\toprule",
+        r"Scenario & Rounds & Acc (\%) & Comm (MB) & Acc Drop (pp) & DL Time$^\dagger$ (min) \\",
+        r"\midrule",
+    ]
+
+    for r in rows:
+        acc_pp  = r["accuracy"] * 100
+        comm_mb = r["total_comm_mb"]
+        drop_pp = (baseline_acc - r["accuracy"]) * 100
+        rounds  = str(r["rounds"])
+        dl_min  = f"{r['dl_time_min']:.1f}" if r["dl_time_min"] is not None else "—"
+
+        acc_s   = fmt(acc_pp)
+        comm_s  = fmt(comm_mb, 1)
+        drop_s  = f"$-${fmt(drop_pp)}" if drop_pp > 0.005 else fmt(drop_pp)
+
+        if r["accuracy"]      == best_acc:  acc_s  = bf(acc_s)
+        if r["total_comm_mb"] == best_comm: comm_s = bf(comm_s)
+
+        lines.append(
+            f"  {r['label']} & {rounds} & {acc_s} & {comm_s} & {drop_s} & {dl_min} \\\\"
+        )
+
+    lines += [
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\end{table}",
+    ]
+    return "\n".join(lines)
+
+
 # ── main ──────────────────────────────────────────────────────────────────
 
 def main():
@@ -310,6 +386,15 @@ def main():
     p2 = TABLES_DIR / "mission_tradeoffs.tex"
     p2.write_text(table2)
     print(f"  → {p2}")
+
+    # CubeSat constrained comparison table
+    table3 = build_cubesat_comparison()
+    if table3:
+        p3 = TABLES_DIR / "cubesat_comparison.tex"
+        p3.write_text(table3)
+        print(f"  → {p3}")
+    else:
+        print("  [skip] cubesat_comparison.tex — constrained results not found yet")
 
     # markdown summary
     summary = build_summary(rows)
